@@ -53,6 +53,7 @@ pub async fn login_user(
                             "user_id" :user.user_id,
                             "order_num" :0,
                             "order_amount" :0,
+                            "avatar":"https://static.runoob.com/images/demo/demo2.jpg",
                             "decline_rate" :0 })
                 } else {
                     code - 0;
