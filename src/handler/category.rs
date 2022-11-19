@@ -2,8 +2,10 @@ use super::get_conn;
 use crate::{
     entity::{category, user_info},
     form::form_entity::*,
+    jsonwebtoken,
     state::AppState,
 };
+
 use axum::{
     body::Body,
     http::{header::HeaderName, HeaderMap, HeaderValue},
@@ -11,7 +13,7 @@ use axum::{
     routing::get,
     Extension, Form, Router,
 };
-use sea_orm::{ColumnTrait, DbErr, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DbErr, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -23,24 +25,12 @@ pub struct ReturnJSON {
     pub error: String,
 }
 
-pub async fn index(Extension(state): Extension<Arc<AppState>>) -> Json<Value> {
-    let conn = get_conn(&state);
-    let categies: Vec<category::Model> = category::Entity::find()
-        .order_by_asc(category::Column::Id)
-        .all(conn)
-        .await
-        .unwrap();
-
-    let res = serde_json::to_value(categies).unwrap();
-
-    Json(res)
-}
-
 /// POST
 pub async fn login_user(
     Extension(state): Extension<Arc<AppState>>,
-    Json(frm): Json<UserLogin>,
+    Json(frm): Json<UserNumPwd>,
 ) -> (HeaderMap, Json<ReturnJSON>) {
+    let mut code = 1;
     let mut headers = HeaderMap::new();
     headers.insert(
         HeaderName::from_static("content-type"),
@@ -54,13 +44,19 @@ pub async fn login_user(
     let value = match user_info_res {
         Ok(user_info) => match user_info {
             None => {
-                json!({"register":false})
+                code = 0;
+                json!({})
             }
             Some(user) => {
                 if user.password == frm.password {
-                    json!({"register":true,"token":user.token,"user_id":user.user_id})
+                    json!({ "token" :user.token,
+                            "user_id" :user.user_id,
+                            "order_num" :0,
+                            "order_amount" :0,
+                            "decline_rate" :0 })
                 } else {
-                    json!({"register":true,"token":"","user_id":""})
+                    code - 0;
+                    json!({ "token":"","user_id":""})
                 }
             }
         },
@@ -76,10 +72,38 @@ pub async fn login_user(
     };
 
     let res = ReturnJSON {
-        code: 1,
+        code: code,
         error: "".to_string(),
         data: value,
     };
 
     (headers, Json(res))
+}
+
+/// POST
+pub async fn register_user(
+    Extension(state): Extension<Arc<AppState>>,
+    Json(frm): Json<UserNumPwd>,
+) -> (HeaderMap, Json<ReturnJSON>) {
+    let mut code = 1;
+    let mut error = "";
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("content-type"),
+        HeaderValue::from_static("text/plain;charset=utf-8"),
+    );
+    let conn = get_conn(&state);
+
+    // let user = user_info::ActiveModel {
+    //     number: Set(frm.number),
+    //     password: Set(frm.password),
+    //     token: Set(jsonwebtoken::generate_token(frm.number.clone(), frm.password).unwrap()),
+    //     ..Default::default()
+    // };
+
+    // let add_user: Result<user_info::Model, sea_orm::DbErr> = user.insert(conn).await;
+    // match add_user {
+    //     Ok(u) => {}
+    // }
+    todo!()
 }

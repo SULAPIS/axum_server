@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
-#[derive(Deserialize)]
-pub struct UserLogin {
+#[derive(Deserialize, Debug, Clone)]
+pub struct UserNumPwd {
     pub number: String,
     pub password: String,
 }
