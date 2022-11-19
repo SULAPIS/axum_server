@@ -56,7 +56,7 @@ pub async fn login_user(
                             "avatar":"https://static.runoob.com/images/demo/demo2.jpg",
                             "decline_rate" :0 })
                 } else {
-                    code - 0;
+                    code = 0;
                     json!({ "token":"","user_id":""})
                 }
             }
