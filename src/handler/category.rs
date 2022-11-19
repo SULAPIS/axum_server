@@ -87,7 +87,7 @@ pub async fn register_user(
     Json(frm): Json<UserNumPwd>,
 ) -> (HeaderMap, Json<ReturnJSON>) {
     let mut code = 1;
-    let mut error = "";
+    let mut error = "".to_string();
     let mut headers = HeaderMap::new();
     headers.insert(
         HeaderName::from_static("content-type"),
@@ -95,16 +95,37 @@ pub async fn register_user(
     );
     let conn = get_conn(&state);
 
-    // let user = user_info::ActiveModel {
-    //     number: Set(frm.number),
-    //     password: Set(frm.password),
-    //     token: Set(jsonwebtoken::generate_token(frm.number.clone(), frm.password).unwrap()),
-    //     ..Default::default()
-    // };
+    let num = frm.number.clone();
+    let pwd = frm.password.clone();
+    let user = user_info::ActiveModel {
+        number: Set(frm.number),
+        password: Set(frm.password),
+        token: Set(jsonwebtoken::generate_token(num, pwd).unwrap()),
+        avatar: Set("https://static.runoob.com/images/demo/demo2.jpg".to_string()),
+        ..Default::default()
+    };
 
-    // let add_user: Result<user_info::Model, sea_orm::DbErr> = user.insert(conn).await;
-    // match add_user {
-    //     Ok(u) => {}
-    // }
-    todo!()
+    let add_user: Result<user_info::Model, sea_orm::DbErr> = user.insert(conn).await;
+    let value: Value = match add_user {
+        Ok(u) => {
+            json!({ "token" :u.token,
+            "user_id" :u.user_id,
+            "order_num" :0,
+            "order_amount" :0,
+            "avatar":u.avatar,
+            "decline_rate" :0 })
+        }
+        Err(e) => {
+            code = 0;
+            error = e.to_string();
+            json!({})
+        }
+    };
+    let res = ReturnJSON {
+        code,
+        error,
+        data: value,
+    };
+
+    (headers, Json(res))
 }
