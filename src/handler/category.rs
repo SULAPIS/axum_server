@@ -1,6 +1,6 @@
 use super::get_conn;
 use crate::{
-    entity::{category, order_info, user_info},
+    entity::{category, order_detail, order_info, user_info},
     form::form_entity::*,
     jsonwebtoken,
     state::AppState,
@@ -56,7 +56,7 @@ pub async fn login_user(
                             "avatar":"https://static.runoob.com/images/demo/demo2.jpg",
                             "decline_rate" :0 })
                 } else {
-                    code = 0;
+                    code = 2;
                     json!({ "token":"","user_id":""})
                 }
             }
@@ -362,4 +362,124 @@ pub async fn change_state(
    } );
 
     (headers, Json(v))
+}
+
+pub async fn save_order_details(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(var): Json<Value>,
+) -> (HeaderMap, Json<Value>) {
+    let token = headers.get("token").unwrap().to_str().unwrap();
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("content-type"),
+        HeaderValue::from_static("application/json;charset=utf-8"),
+    );
+    let conn = get_conn(&state);
+    let user_id: i32 = user_info::Entity::find()
+        .filter(user_info::Column::Token.eq(token))
+        .one(conn)
+        .await
+        .unwrap()
+        .unwrap()
+        .user_id;
+
+    let details = var.to_string();
+    let order = order_detail::ActiveModel {
+        user_id: Set(user_id),
+        detail: Set(details),
+        ..Default::default()
+    };
+    let o = order.insert(conn).await.unwrap();
+    let v: Value = serde_json::from_str(&o.detail).unwrap();
+    let value = json!({
+        "code":1,
+        "order_id":o.order_id,
+        "state":o.c_state,
+        "detail":v
+
+    });
+    (headers, Json(value))
+}
+
+pub async fn get_order_details(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: HeaderMap,
+) -> (HeaderMap, Json<Value>) {
+    let token = headers.get("token").unwrap().to_str().unwrap();
+
+    let mut code = 1;
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("content-type"),
+        HeaderValue::from_static("application/json;charset=utf-8"),
+    );
+    let conn = get_conn(&state);
+    let user: user_info::Model = user_info::Entity::find()
+        .filter(user_info::Column::Token.eq(token))
+        .one(conn)
+        .await
+        .unwrap()
+        .unwrap();
+    let user_id = user.user_id;
+    let res = order_detail::Entity::find()
+        .filter(order_detail::Column::UserId.eq(user_id))
+        .all(conn)
+        .await
+        .unwrap();
+    let mut data = Vec::new();
+
+    for o in res {
+        let v: Value = serde_json::from_str(&o.detail).unwrap();
+        data.push(json!(
+            {
+                "order_id":o.order_id,
+                "state":o.c_state,
+                "detail":v
+            }
+        ));
+    }
+
+    let v = json!({
+        "code":1,
+        "data":data
+   } );
+
+    (headers, Json(v))
+}
+
+pub async fn change_state_details(
+    Extension(state): Extension<Arc<AppState>>,
+    Json(var): Json<Value>,
+) -> (HeaderMap, Json<Value>) {
+    let mut code = 1;
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("content-type"),
+        HeaderValue::from_static("application/json;charset=utf-8"),
+    );
+
+    let order_id: i32 = var["order_id"].to_string().parse().unwrap();
+    let order_state: i32 = var["state"].to_string().parse().unwrap();
+    let conn = get_conn(&state);
+    let mut res: order_detail::ActiveModel = order_detail::Entity::find()
+        .filter(order_detail::Column::OrderId.eq(order_id))
+        .one(conn)
+        .await
+        .unwrap()
+        .unwrap()
+        .into();
+    res.c_state = Set(order_state);
+    let o = res.update(conn).await.unwrap();
+
+    let v: Value = serde_json::from_str(&o.detail).unwrap();
+    let value = json!({
+        "code":1,
+        "order_id":o.order_id,
+        "state":o.c_state,
+        "detail":v
+
+    });
+    (headers, Json(value))
 }

@@ -17,7 +17,14 @@
 --     address varchar,
 --     c_time varchar
 -- ) 
--- INSERT INTO user_info (number, password, token)
+drop table order_detail;
+CREATE TABLE order_detail (
+    order_id serial PRIMARY KEY,
+    user_id integer NOT NULL,
+    user2_id integer DEFAULT NULL,
+    c_state integer default 0 NOT NULL,
+    detail TEXT
+) -- INSERT INTO user_info (number, password, token)
 -- VALUES (
 --         '12345678901',
 --         '123456',
