@@ -15,4 +15,8 @@ pub fn init() -> axum::Router {
         .route("/order/add", post(save_order_details))
         .route("/order/get", get(get_order_details))
         .route("/order/edit", post(change_state_details))
+        .route("/supply/my", get(get_supply_order))
+        .route("/supply/none", get(get_supply_order_null))
+        .route("/supply/receive", post(receive_order))
+        .route("/order/cancel", post(cancel_order))
 }
